@@ -96,12 +96,10 @@ int main(void)
   MX_USART2_UART_Init();
 
   /* USER CODE BEGIN 2 */
-  //NVIC_SetPriorityGrouping( 0 );
+  NVIC_SetPriorityGrouping(0);
   DWT->CTRL |= 1;
   SEGGER_SYSVIEW_Conf();
-  //SEGGER_SYSVIEW_Start();
-
-
+  SEGGER_SYSVIEW_Start();
   status = xTaskCreate(Task1,
 		  	  	  	  "tarea 1",
 					  configMINIMAL_STACK_SIZE,
