@@ -18,12 +18,17 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "FreeRTOS.h"
 #include "task.h"
+
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,13 +48,16 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+TaskHandle_t task1_handle;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+void Task1(void *params);
+void Task2(void *params);
 
+void UART_Printf(char *format,...);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -64,7 +72,7 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	BaseType_t status;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -85,8 +93,31 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  /* USER CODE BEGIN 2 */
+  MX_USART2_UART_Init();
 
+  /* USER CODE BEGIN 2 */
+  //NVIC_SetPriorityGrouping( 0 );
+  DWT->CTRL |= 1;
+  SEGGER_SYSVIEW_Conf();
+  //SEGGER_SYSVIEW_Start();
+
+
+  status = xTaskCreate(Task1,
+		  	  	  	  "tarea 1",
+					  configMINIMAL_STACK_SIZE,
+					  "hola mundo\r\n",
+					  3,
+					  &task1_handle);
+  configASSERT(status == pdPASS);
+
+
+  status = xTaskCreate(Task2,
+		  	  	  	  "tarea 2",
+					  configMINIMAL_STACK_SIZE,
+					  NULL,
+					  3,
+					  NULL);
+  configASSERT(status == pdPASS);
   /* inicializa el kernel*/
   vTaskStartScheduler();		//nunca retorna
   /* USER CODE END 2 */
@@ -148,7 +179,40 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void Task1(void *params){
+	uint8_t *str = (uint8_t*)params;
+	/*inicializacion*/
+	UART_Printf("TAREA 1\r\n");
+	UART_Printf("parametro->%s\r\n",str);
 
+	/*loop*/
+	while(1){
+		UART_Printf("LOOP TAREA 1\r\n");
+		vTaskDelay(pdMS_TO_TICKS(100));
+	}
+	/*Elimina la tarea*/
+	vTaskDelete(NULL);
+}
+void Task2(void *params){
+	UART_Printf("TAREA 2\r\n");
+	for(;;){
+		UART_Printf("LOOP TAREA 2\r\n");
+		vTaskDelay(pdMS_TO_TICKS(200));
+	}
+	/*Elimina la tarea*/
+	vTaskDelete(NULL);
+}
+
+void UART_Printf(char *format,...){
+    char str[80];
+
+    /*Extract the the argument list using VA apis */
+    va_list args;
+    va_start(args, format);
+    vsprintf(str, format,args);
+    HAL_UART_Transmit(&huart2, (uint8_t*)str, strlen(str), 10);
+    va_end(args);
+}
 /* USER CODE END 4 */
 
 /**
