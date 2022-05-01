@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "cmsis_os.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -42,13 +43,19 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+/**
+ * 0 : no se desea usar segger system view
+ * 1 : se usa para la depuracion
+ */
+#define SYSTEM_VIEW				1
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 TaskHandle_t task1_handle;
+osThreadId task3_handle;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,6 +63,9 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void Task1(void *params);
 void Task2(void *params);
+void Task3(const void *params);
+
+osThreadDef(Tarea_3, Task3, 3, 0, configMINIMAL_STACK_SIZE);
 
 void UART_Printf(char *format,...);
 /* USER CODE END PFP */
@@ -96,10 +106,15 @@ int main(void)
   MX_USART2_UART_Init();
 
   /* USER CODE BEGIN 2 */
-  NVIC_SetPriorityGrouping(0);
+#if SYSTEM_VIEW
+//  NVIC_SetPriorityGrouping(0);
   DWT->CTRL |= 1;
   SEGGER_SYSVIEW_Conf();
-  SEGGER_SYSVIEW_Start();
+  /*solo se va usar cuando se trabaje en modo one shot*/
+//  SEGGER_SYSVIEW_Start();
+
+#endif
+
   status = xTaskCreate(Task1,
 		  	  	  	  "tarea 1",
 					  configMINIMAL_STACK_SIZE,
@@ -116,8 +131,10 @@ int main(void)
 					  3,
 					  NULL);
   configASSERT(status == pdPASS);
+
+  task3_handle = osThreadCreate(osThread(Tarea_3), NULL);
   /* inicializa el kernel*/
-  vTaskStartScheduler();		//nunca retorna
+  osKernelStart();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -186,6 +203,7 @@ void Task1(void *params){
 	/*loop*/
 	while(1){
 		UART_Printf("LOOP TAREA 1\r\n");
+		SEGGER_SYSVIEW_PrintfHost("EJECUCION DE LATREA->%d\r\n",1);
 		vTaskDelay(pdMS_TO_TICKS(100));
 	}
 	/*Elimina la tarea*/
@@ -195,12 +213,21 @@ void Task2(void *params){
 	UART_Printf("TAREA 2\r\n");
 	for(;;){
 		UART_Printf("LOOP TAREA 2\r\n");
+		SEGGER_SYSVIEW_PrintfHost("EJECUCION DE LATREA->%d\r\n",2);
 		vTaskDelay(pdMS_TO_TICKS(200));
 	}
 	/*Elimina la tarea*/
 	vTaskDelete(NULL);
 }
 
+void Task3(const void *params){
+
+	while(1){
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+		vTaskDelay(pdMS_TO_TICKS(50));
+	}
+	vTaskDelete(NULL);
+}
 void UART_Printf(char *format,...){
     char str[80];
 
